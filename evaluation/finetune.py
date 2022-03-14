@@ -6,7 +6,8 @@ import torch.nn.functional as F
 import os
 
 import models
-from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, tiered_ImageNet_few_shot
+from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, \
+    tiered_ImageNet_few_shot, cars_few_shot, places_few_shot, cub_few_shot, plantae_few_shot
 
 from tqdm import tqdm
 import pandas as pd
@@ -19,14 +20,14 @@ import warnings
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
-        
+
         self.fc = nn.Linear(dim, n_way)
 
     def forward(self, x):
         x = self.fc(x)
         return x
 
-def finetune(novel_loader, params, n_shot): 
+def finetune(novel_loader, params, n_shot):
 
     print("Loading Model: ", params.embedding_load_path)
     if params.embedding_load_path_version == 0:
@@ -69,7 +70,7 @@ def finetune(novel_loader, params, n_shot):
         pretrained_model_template = models.Resnet12(width=1, dropout=0.1)
         feature_dim = pretrained_model_template.output_size
     elif params.model == 'resnet18':
-        pretrained_model_template = models.resnet18(remove_last_relu=False, 
+        pretrained_model_template = models.resnet18(remove_last_relu=False,
                                         input_high_res=True)
         feature_dim = 512
     else:
@@ -96,14 +97,14 @@ def finetune(novel_loader, params, n_shot):
         x_var = x
 
         assert len(torch.unique(y)) == n_way
-    
+
         batch_size = 4
-        support_size = n_way * n_support 
-       
+        support_size = n_way * n_support
+
         y_a_i = torch.from_numpy(np.repeat(range(n_way), n_support)).cuda()
 
         # split into support and query
-        x_b_i = x_var[:, n_support:,: ,: ,:].contiguous().view(n_way*n_query, *x.size()[2:]).cuda() 
+        x_b_i = x_var[:, n_support:,: ,: ,:].contiguous().view(n_way*n_query, *x.size()[2:]).cuda()
         x_a_i = x_var[:, :n_support,: ,: ,:].contiguous().view(n_way*n_support, *x.size()[2:]).cuda() # (25, 3, 224, 224)
 
         if params.freeze_backbone:
@@ -116,14 +117,14 @@ def finetune(novel_loader, params, n_shot):
          ###############################################################################################
         loss_fn = nn.CrossEntropyLoss().cuda()
         classifier_opt = torch.optim.SGD(classifier.parameters(), lr=0.01, momentum=0.9, dampening=0.9, weight_decay=0.001)
-        
+
 
         if not params.freeze_backbone:
             delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr=0.01)
 
         ###############################################################################################
         total_epoch = 100
-        
+
         classifier.train()
 
         for epoch in range(total_epoch):
@@ -133,11 +134,11 @@ def finetune(novel_loader, params, n_shot):
                 classifier_opt.zero_grad()
                 if not params.freeze_backbone:
                     delta_opt.zero_grad()
-                    
+
 
                 #####################################
                 selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size)]).cuda()
-               
+
                 y_batch = y_a_i[selected_id]
 
                 if params.freeze_backbone:
@@ -162,11 +163,11 @@ def finetune(novel_loader, params, n_shot):
         with torch.no_grad():
             output = pretrained_model(x_b_i)
             scores = classifier(output)
-       
+
         y_query = np.repeat(range( n_way ), n_query )
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
-        
+
         top1_correct = np.sum(topk_ind[:,0] == y_query)
         correct_this, count_this = float(top1_correct), len(y_query)
         # print (correct_this/ count_this *100)
@@ -178,7 +179,7 @@ def finetune(novel_loader, params, n_shot):
             acc_std = np.std(acc_all_np)
             print('Test Acc (%d episodes) = %4.2f%% +- %4.2f%%' %
                 (len(acc_all),  acc_mean, 1.96 * acc_std/np.sqrt(len(acc_all))))
-        
+
         ###############################################################################################
 
     acc_all  = np.asarray(acc_all)
@@ -202,6 +203,14 @@ def main(params):
         datamgr = CropDisease_few_shot
     elif params.target_dataset == 'ChestX':
         datamgr = Chest_few_shot
+    elif params.target_dataset == 'cars':
+        datamgr = cars_few_shot
+    elif params.target_dataset == 'cub':
+        datamgr = cub_few_shot
+    elif params.target_dataset == 'places':
+        datamgr = places_few_shot
+    elif params.target_dataset == 'plantae':
+        datamgr = plantae_few_shot
     elif params.target_dataset == 'miniImageNet_test':
         datamgr = miniImageNet_few_shot
     elif params.target_dataset == 'tiered_ImageNet_test':
@@ -210,7 +219,7 @@ def main(params):
         datamgr = tiered_ImageNet_few_shot
     else:
         raise ValueError("Invalid Dataset!")
-    
+
     results = {}
     shot_done = []
     print(params.target_dataset)
@@ -231,15 +240,15 @@ def main(params):
         shot_done.append(shot)
 
         if params.save_suffix is None:
-            pd.DataFrame(results).to_csv(os.path.join(params.save_dir, 
-                params.source_dataset + '_' + params.target_dataset + '_' + 
+            pd.DataFrame(results).to_csv(os.path.join(params.save_dir,
+                params.source_dataset + '_' + params.target_dataset + '_' +
                 str(params.n_way) + 'way' + '.csv'), index=False)
         else:
-            pd.DataFrame(results).to_csv(os.path.join(params.save_dir, 
-                params.source_dataset + '_' + params.target_dataset + '_' + 
+            pd.DataFrame(results).to_csv(os.path.join(params.save_dir,
+                params.source_dataset + '_' + params.target_dataset + '_' +
                 str(params.n_way) + 'way_' + params.save_suffix + '.csv'), index=False)
 
-    return 
+    return
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(
@@ -256,9 +265,9 @@ if __name__=='__main__':
                         help='class num to classify for training')
     parser.add_argument('--n_shot', nargs='+', default=[5], type=int,
                         help='number of labeled data in each class, same as n_support')
-    parser.add_argument('--n_episode', default=600, type=int, 
+    parser.add_argument('--n_episode', default=600, type=int,
                         help='Number of episodes')
-    parser.add_argument('--n_query', default=15, type=int, 
+    parser.add_argument('--n_query', default=15, type=int,
                         help='Number of query examples per class')
     parser.add_argument('--train_aug', action='store_true',
                         help='perform data augmentation or not during training ')
@@ -269,11 +278,11 @@ if __name__=='__main__':
     parser.add_argument('--seed', default=1, type=int, help='random seed')
     parser.add_argument('--embedding_load_path', type=str,
                         help='path to load embedding')
-    parser.add_argument('--embedding_load_path_version', type=int, default=1, 
+    parser.add_argument('--embedding_load_path_version', type=int, default=1,
                         help='how to load the embedding')
     parser.add_argument('--save_suffix', type=str, help='suffix added to the csv file')
 
-    
+
     params = parser.parse_args()
     main(params)
-   
+

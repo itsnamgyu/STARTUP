@@ -23,7 +23,8 @@ import warnings
 import random 
 from collections import OrderedDict
 
-from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot
+from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, cars_few_shot, cub_few_shot, \
+    places_few_shot, plantae_few_shot
 from datasets import miniImageNet_few_shot, tiered_ImageNet_few_shot, ImageNet_few_shot
 
 import copy
@@ -274,6 +275,34 @@ def main(args):
         transform_test = Chest_few_shot.TransformLoader(
             args.image_size).get_composed_transform(aug=False)
         dataset = Chest_few_shot.SimpleDataset(transform, split=args.target_subset_split)
+    elif args.target_dataset == 'cars':
+        transform = cars_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=True)
+        transform_test = cars_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=False)
+        dataset = cars_few_shot.SimpleDataset(
+            transform, split=args.target_subset_split)
+    elif args.target_dataset == 'cub':
+        transform = cub_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=True)
+        transform_test = cub_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=False)
+        dataset = cub_few_shot.SimpleDataset(
+            transform, split=args.target_subset_split)
+    elif args.target_dataset == 'places':
+        transform = places_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=True)
+        transform_test = places_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=False)
+        dataset = places_few_shot.SimpleDataset(
+            transform, split=args.target_subset_split)
+    elif args.target_dataset == 'plantae':
+        transform = plantae_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=True)
+        transform_test = plantae_few_shot.TransformLoader(
+            args.image_size).get_composed_transform(aug=False)
+        dataset = plantae_few_shot.SimpleDataset(
+            transform, split=args.target_subset_split)
     elif args.target_dataset == 'miniImageNet_test':
         transform = miniImageNet_few_shot.TransformLoader(
             args.image_size).get_composed_transform(aug=True)
