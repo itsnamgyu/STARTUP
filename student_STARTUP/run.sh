@@ -1,13 +1,11 @@
 #!/bin/bash
 
 # bash script to train STARTUP representation with SimCLR self-supervision
+# Before running the commands, please take care of the TODO appropriately
 export CUDA_VISIBLE_DEVICES=0
 
-##############################################################################################
-# Train student representation using MiniImageNet as the source 
-##############################################################################################
-# Before running the commands, please take care of the TODO appropriately
-for target_testset in "ChestX" "ISIC" "EuroSAT" "CropDisease" "miniImageNet_test"
+# miniImageNet - ResNet10
+for target_testset in "ChestX" "ISIC" "EuroSAT" "CropDisease" "cars" "cub" "places" "plantae"
 do
     # TODO: Please set the following argument appropriately 
     # --teacher_path: filename for the teacher model
@@ -27,12 +25,12 @@ do
     --print_freq 10 \
     --seed 1 \
     --wd 1e-4 \
-    --num_workers 4 \
+    --num_workers 8 \
     --model resnet10 \
     --teacher_path ../teacher_miniImageNet/logs_deterministic/checkpoints/miniImageNet/ResNet10_baseline_256_aug/399.tar \
     --teacher_path_version 0 \
     --base_dataset miniImageNet \
-    --base_path /scratch/datasets/miniImageNet_full_resolution/train \
+    --base_path /data/cdfsl/miniImagenet \
     --base_no_color_jitter \
     --base_val_ratio 0.05 \
     --eval_freq 2 \
@@ -40,12 +38,42 @@ do
     --resume_latest 
 done
 
-##############################################################################################
-# Train student representation using ImageNet as the source 
-##############################################################################################
-# Before running the commands, please take care of the TODO appropriately
+# tieredImageNet - ResNet18
+for target_testset in "ChestX" "ISIC" "EuroSAT" "CropDisease" "cars" "cub" "places" "plantae"
+do
+    # TODO: Please set the following argument appropriately
+    # --teacher_path: filename for the teacher model
+    # --base_path: path to find base dataset
+    # --dir: directory to save the student representation.
+    # E.g. the following commands trains a STARTUP representation based on the teacher specified at
+    #      ../teacher_ImageNet/resnet18/checkpoint.pkl
+    #      The student representation is saved at ImageNet_source/$target_testset\_unlabeled_20/checkpoint_best.pkl
+    python STARTUP.py \
+    --dir tieredImageNet_source/$target_testset\_unlabeled_20 \
+    --target_dataset $target_testset \
+    --image_size 224 \
+    --target_subset_split datasets/split_seed_1/$target_testset\_unlabeled_20.csv \
+    --bsize 256 \
+    --epochs 1000 \
+    --save_freq 50 \
+    --print_freq 10 \
+    --seed 1 \
+    --wd 1e-4 \
+    --num_workers 4 \
+    --model resnet18 \
+    --teacher_path ../teacher_tieredImageNet/understanding_checkpoints/resnet18_base_LS_base/checkpoint.pkl \
+    --teacher_path_version 1 \
+    --base_dataset tieredImageNet \
+    --base_path /data/cdfsl/tiered_Imagenet/train \
+    --base_no_color_jitter \
+    --base_val_ratio 0.01 \
+    --eval_freq 2 \
+    --batch_validate \
+    --resume_latest
+done
 
-for target_testset in "ChestX" "ISIC" "EuroSAT" "CropDisease"
+# ImageNet - ResNet18
+for target_testset in "ChestX" "ISIC" "EuroSAT" "CropDisease" "cars" "cub" "places" "plantae"
 do
     # TODO: Please set the following argument appropriately 
     # --teacher_path: filename for the teacher model
@@ -70,7 +98,7 @@ do
     --teacher_path ../teacher_ImageNet/resnet18/checkpoint.pkl \
     --teacher_path_version 1 \
     --base_dataset ImageNet \
-    --base_path /scratch/datasets/imagenet/train \
+    --base_path /data/cdfsl/Imagenet/train \
     --base_no_color_jitter \
     --base_val_ratio 0.01 \
     --eval_freq 2 \
